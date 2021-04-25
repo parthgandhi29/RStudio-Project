@@ -1,0 +1,895 @@
+---
+title: "Chicago Taxi Market Analysis"
+author: Welcome Taxi – Parth Gandhi, Rinkesh Patel, Sharath Kumar Reddy Guddati, Mustafa Fnu
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  word_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, cache= F}
+knitr::opts_chunk$set(echo = TRUE,
+  error = TRUE,
+  warning= FALSE,
+  message= FALSE)
+```
+# Project Part 1
+
+## 1. Introduction: 
+
+In a large metropolitan city like Chicago, plenty of taxi service companies work alongside with each other, some companies continue to do well by making smart strategies while some lose to competition and goes out of business.Year 2020 is very different than the rest because in 2020, COVID pandemic got introduced in everyone lives because of which plenty of companies went out of business and that also includes many taxi companies. Taxi companies went out of business due to effects of lockdown that started in March until June, during that time everyone was advised by health authority to stay at home unless it was necessary to go out, and even after lockdown got lifted in July, people didn’t ride taxi much as before COVID since everyone was working from home and some people were simply scared to travel due to which taxi companies slowly went out of business that survived lockdown until June. 
+**Also for your information, the data is real but the story is made up. We do not have enough data like companies profit and loss information to back up that taxi companies slowly went out of business, our team is just assuming that taxi companies went out business that survived lockdown since even they must had difficult time pay for their employees, taxis, and other operations during lockdown with no source of income coming. 
+
+Our team wants to start a new taxi service called "Welcome Taxi" for resident,tourists & employees who travels around Chicago. We think this is good time to enter the competitive taxi service market since some old competitors have left the market while others are still struggling to come up with strategy to survive during the pandemic. We want to provide good service at best rate possible which our passengers could also afford while we also make some profit from it.Since the COVID19 pandemic has taken over the world, it has also made changes in Taxi Service market that we want to enter, so our team thinks its best if we first analyze the Taxi market before, we start our taxi service business to better understand the changes market that have occurred during 2020 & make smart business strategies so we can start on the right foot and also be a profitable business even when the pandemic has not ended yet. 
+
+### Dataset description:
+
+The dataset is available on the City of Chicago Data Portal.The dataset represents the details of the taxi trips reported to the City of Chicago Data Portal in the year of 2020. The data shares information related with every single trip made during that year that were reported to City of Chicago Data Portal.
+
+The link is: (https://data.cityofchicago.org/Transportation/Taxi-Trips-2020/r2u4-wwk3))
+
+ Column Name:                   Data Type:           Description:
+ trip_id                        chr                  A unique identifier for the trip
+ trip_timestamp (month)         int                  Recorded start/end time for a trip
+ trip_timestamp (date)          int                  Recorded start/end time for a trip
+ trip_timestamp (year)          int                  Recorded start/end time for a trip
+ trip_timestamp (hour)          int                  Recorded start/end time for a trip
+ trip_timestamp (min)           int                  Recorded start/end time for a trip
+ weekday                        fctr                 Day of the week
+ trip_seconds                   int                  Time of the trip in seconds
+ trip_miles                     dbl                  Distance of the trip in seconds
+ pickup_communities_area_code   fctr                 The communities area where the trip began
+ dropoff_communities_area_code  fctr                 The communities area where the trip ended
+ fare                           dbl                  A standard fare for the trip
+ tips                           dbl                  Tips paid by a passenger for the trip
+ tolls                          dbl                  The tolls for the trip
+ extras                         dbl                  The surge price during the trip
+ trip_total                     dbl                  The total cost of the trip
+ payment_type                   fctr                 The payment method for the trip
+ company                        fctr                 Name of the taxi company
+ pickup_centroid_latitude       dbl                  The location of pickup as shown in a map
+ pickup_centroid_longitude      dbl                  The location of pickup as shown in a map
+ dropoff_centroid_latitude      dbl                  The location of dropoff as shown in a map
+ dropoff_centroid_longitude     dbl                  The location of dropoff as shown in a map
+
+Since we are a new company, we want to use all the columns related to taxi service industry to come up with visualizations, and perform statistical analysis that would help us answer our questions to start operation at optimal time. 
+```{r,echo=FALSE,eval=TRUE}
+### Packages installation (NO need to show this in Word file):
+
+install.packages("tidyverse")
+install.packages("dplyr")
+install.packages("sparklyr")
+install.packages("factoextra")
+```
+
+
+```{r, echo=FALSE,eval=TRUE}
+### Loading packages (NO Need to show this in Word File):
+
+library(tidyverse)
+library(dplyr)
+library(cluster)
+library(factoextra)
+library(gridExtra)
+library(scales)
+library(ggplot2)
+library(ggthemes)
+
+```
+Once the required packages are installed and successfully loaded, we can now import the data to begin the tidying process post which we will be able to run our analysis. 
+
+## Data Import:
+
+### The complete 2020 chicago taxi trips is loading into R using read_csv fundtion which directly loads the data into R in a Tibble format. 
+
+The complete 2020 chicago taxi trips is loading into R using read_csv fundtion which directly loads the data into R in a Tibble format. 
+
+```{r}
+### Loading Complete Taxi_Trips_2020 data
+ 
+taxi_trips_2020_part1_csv <- read_csv("C:\\Users\\shara\\Desktop\\OMIS_665_RStudio\\OMIS665_R_Studio_Project\\OMIS665_Project\\taxi_trips_2020.csv")
+
+```
+## 2. Body
+
+After importing the original dataset, we found some columns such as taxi ID, pickup centroid location and dropoff centroid location that were not going to help us in our analysis because taxi ID was not going to provide meaningful information to us, and pickup centroid location and Dropoff Centroid Location were redundant since we already had pickup centroid latitude, pickup centroid longitude, dropoff centroid latitude and dropoff centroid longitude columns in our dataset. Next we came across some columns such as trip start timestamp & trip end timestamp that needed to be separated into multiple columns to get good analysis because if we want to do analysis on particular month, date or time it would be easier for us to do it. 
+
+### Cleaning the dataset:
+
+Since our team felt it was necessary to delete some columns while separating one column into couple columns, we cleaned the dataset, changed the data types of the columns and created a new taxi_trips_2020_final table on which we are going to do our analysis on. 
+For example, we found that we do not need column taxi ID, pickup centroid location, & dropoff centroid location. We deleted taxi ID column since it is a randomly generated number which does not provide much insight into our analysis while we deleted pickup and drop-off centroid location since they were repetitive since the csv file already has pickup and drop-off centroid latitude and longitude columns separately, so this column does not help in our analysis. While we felt it was necessary for us to separate trip start timestamp into 4 separate columns which are month, date, year, hour, minute, and weekday respectively. Lastly, our final dataset has total of 22 columns which is same as original dataset we downloaded from City of Chicago Data Portal but some columns are separated into multiple columns as shown in glimpse of dataset. 
+Also, our original dataset had over 1 million observations which would have made it difficult for our group to load the dataset and perform analysis, so we decided to decrease the observations to 504,000 to be exact which was within the acceptable requirement to do our project. Later in the report, you will find that we have taken 42,000 observations for each month so with 12 months it will equal to 504,000 for this reason. We thought to mention it here to follow along easily. Also, later in the report, you will find that we have separated the date & time column into separate columns since originally date & time column was in "MM/DD/YYY HH:MM" format to perform analysis easier.
+
+Changing the column names to ignore the spaces in column names and to maintain a single format for all the column names.
+
+# Here we are changing the column names to ignore the spaces in column names and to maintain a single format for all the column names.
+
+```{r}
+#Change the column names
+
+colnames(taxi_trips_2020_part1_csv) <- c ("trip_id","taxi_id","trip_start_timestamp","trip_end_timesatmp","trip_seconds","trip_miles","pickup_census_tract","dropoff_census_tract","pickup_community_area_code","dropoff_community_area_code","fare","tips","tolls","extras","trip_total","payment_type","company","pickup_centroid_latitude","pickup_centroid_longitude","pickup_centroid_location","dropoff_centroid_latitude","dropoff_centroid_longitude","dropoff_centroid_location")
+```
+Changing the trip_start_timestamp date format into default format using as.POSIXct funtion to generate a weekday column to analyse the data on weekday basis.
+
+```{r}
+#Changing the trip_start_timestamp date format
+
+taxi_trips_2020_part1_csv$trip_start_timestamp <- as.POSIXct(taxi_trips_2020_part1_csv$trip_start_timestamp, format = '%m/%d/%Y %I:%M:%S %p', tz = 'UTC')
+```
+  
+```{r}
+#Adding weekday column to the table
+
+taxi_trips_2020_part1_csv$weekday <- weekdays(taxi_trips_2020_part1_csv$trip_start_timestamp)
+```
+Removing columns that are not useful for the analysis like taxi_id , trip_end_timestamp (As we have start time and trip seconds),pickup and dropoff census tract and pickup and dropoff centroid location.
+```{r}
+#Removing columns that are not required
+
+taxi_trips_2020_tidy <- select(taxi_trips_2020_part1_csv, 1,3,24,5,6,9,10,11,12,13,14,15,16,17,18,19,21,22)
+```
+Separating trip_start_timestamp column into month, days, year, hour and minutes columns which was in "MM/DD/YYYY HH:MM" format earlier for analyzing the data accordingly. 
+```{r}
+#Separating timestamp to individual columns
+
+taxi_trips_2020_tidy <- taxi_trips_2020_tidy %>% 
+  separate(trip_start_timestamp, into = c("year", "month", "date", "hour", "minute"))
+```
+To meet the project requirements and have same number of observations for each month, we are filtering and taking random sample of 42,000 observations so our analysis won't have any outliers if one month has more observations than another. Also, we have and loaded the results into individual sample tables.
+```{r}
+#Filter and random sample records by month
+
+jan_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="01") %>% 
+  sample_n(42000)
+```
+
+```{r, echo=FALSE,eval=TRUE}
+
+feb_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="02") %>% 
+  sample_n(42000)
+
+mar_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="03") %>% 
+  sample_n(42000)
+
+apr_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="04") %>% 
+  sample_n(42000)
+
+may_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="05") %>% 
+  sample_n(42000)
+
+jun_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="06") %>% 
+  sample_n(42000)
+
+jul_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="07")%>% 
+  sample_n(42000)
+
+aug_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="08")%>% 
+  sample_n(42000)
+
+sep_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="09") %>% 
+  sample_n(42000)
+
+oct_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="10") %>% 
+  sample_n(42000)
+
+nov_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="11")%>% 
+  sample_n(42000)
+
+dec_data <- taxi_trips_2020_tidy %>% 
+  filter(month=="12") %>% 
+  sample_n(42000)
+```
+
+After sampling the data each month, we are joining the months sample data that we separated earlier to get 42,000 observations for each month. By joining the months sample tables, we can have a final dataset with equal number of records from each month which would be better for our analysis. 
+```{r}
+#joining  sample data
+taxi_trips_sample <- jan_data %>% 
+ full_join(feb_data) %>%
+ full_join(mar_data) %>%
+ full_join(apr_data) %>%
+ full_join(may_data) %>%
+ full_join(jun_data) %>%
+ full_join(jul_data) %>%
+ full_join(aug_data) %>%
+ full_join(sep_data) %>%
+ full_join(oct_data) %>%
+ full_join(nov_data) %>%
+ full_join(dec_data)
+```
+
+After analyzing the data, we decided to change the datatypes of columns that are not right according to our analysis. Reason behind change in datatype is when we want to do a visualization, certain datatype won't give us the output we want. So, its better we change the datatype now so we don't run into errors later. Like weekday, pickup and dropoff community area code columns to factor which we are considering as categorical variables. 
+```{r}
+#Changing the datatypes of columns
+
+taxi_trips_sample_final <- taxi_trips_sample %>% 
+  mutate_at(c(2, 3, 4, 5, 6, 8), as.integer) %>% 
+  mutate_at(c(7, 10, 11, 17, 18), as.factor)
+```
+
+As we have community area codes instead of names, we are loading the community area codes and names csv file. So, we can update the community area names with related community_area_code.
+```{r}
+# loading the csv file to update the community area names with codes
+
+community_areas <- read_csv("C:\\Users\\shara\\Desktop\\OMIS_665_RStudio\\OMIS665_R_Studio_Project\\OMIS665_Project\\community_areas.csv")
+```
+
+Changing the datatype of the column from community areas csv file to factor to maintain the similar data type with taxi trips data.
+```{r}
+#changing the datatype
+
+community_areas<-community_areas %>% 
+  mutate_at(c(1), as.factor)
+```
+
+Changing the names of columns, for example we are changing it from "pickup_area_number " to "pickup_community_area_code" and "community_name " to "pickup_community_area_name" which seems appropriate. 
+```{r}
+#changing the column names
+
+colnames(community_areas) = c("community_area_code", "community_area_name")
+```
+
+After loading the community area file, we are looking for community_area_name assigned to community_area_code from the community_areas table and replace the pickup_community_area_code and dropoff_community_area_code with community_area_name in the taxi_trips dataset.
+
+```{r}
+#looking up community_area_name from the community_areas and load into taxi_trips data accordingly
+
+taxi_trips_2020_final <- taxi_trips_sample_final
+
+taxi_trips_2020_final$pickup_community_area_code <- community_areas$community_area_name[match(unlist(taxi_trips_2020_final$pickup_community_area_code), community_areas$community_area_code )]
+
+taxi_trips_2020_final$dropoff_community_area_code <- community_areas$community_area_name[match(unlist(taxi_trips_2020_final$dropoff_community_area_code), community_areas$community_area_code )]
+```
+
+In the final dataset we have created have some special characters in the values. So, we are removing special characters in pickup and dropoff community code columns to do analysis easier. We do not want any special character that would interfere with analysis later. 
+```{r}
+# removing special characters in pickup and dropoff community code columns
+
+taxi_trips_2020_final$pickup_community_area_code = as.factor(gsub("[^a-zA-Z0-9.]","", taxi_trips_2020_final$pickup_community_area_code))
+taxi_trips_2020_final$dropoff_community_area_code = as.factor(gsub("[^a-zA-Z0-9.]","", taxi_trips_2020_final$dropoff_community_area_code))
+
+```
+
+## 3. Glimpse of Dataset
+
+```{r,echo=FALSE,eval=TRUE}
+glimpse(taxi_trips_2020_final)
+```
+
+
+## Queries & Visualizations. 
+
+We have created visualizations and regular queries for all the variables in the dataset we want to explore for final analysis. 
+
+Since we are planning to start a new taxi company in Chicago, we wanted to check the Chicago Taxi Market first before entering so we know what strategies we should make, who are our potential competitors in the market, how much should we charge to stay competitive while also keeping affordable for our potential customers, which community areas in Chicago we should focus more on and less on according to their demand.
+Next, we will start analysing dataset to get some useful information out of it. 
+
+### 1. Busiest hour of the day for taxi trips with revenue.
+
+The idea behind the question is we wanted to find out what times during the day have the most volumes of trips, and find out the trip total which we consider as revenue for each hour in order for our company to run more taxis at the busy time so we can take advantage of the busy hour and earn more sales, and not deploy more taxis than what we needed when its slow.This strategy will help our company save cost in long term.
+
+```{r}
+## Visualization after feedback in Spark:
+test_spark <- taxi_trips_2020_spark %>% 
+  group_by(hour) %>% 
+  summarise(revenue = sum(trip_total, na.rm = TRUE),
+            trips_count =n()) %>% 
+  filter(!is.na(hour)) %>%
+  arrange(desc(revenue)) %>% 
+  collect ()
+
+ggplot(aes(x= hour, y= revenue), data = test_spark)+
+  geom_point(aes(color = trips_count))+
+  scale_y_continuous(name = "revenue",
+                     label = dollar,
+                     breaks = pretty_breaks())
+```
+Our hour variables is in 24 hour format/ military time format which is surprising because I don't believe there is much business for taxis past midnight but some competitors still run past midnight to earn more sales which is interesting strategy to think about.
+Based on the output, the busiest hour of the day for taxi trips is between 12PM to 5PM. We found that during the busiest time between 12PM to 5PM, the revenue overall is above $600,000 so our company should deploy more taxis during the busy time to take advantage of it. 
+
+Next, lets take a look at which company we should look out for in the market according to their revenue. 
+
+### 2. Which taxi company made the most revenue out of the top 10 companies?
+
+The idea behind the question is we want to find out who our competitors in Taxi Market are in terms of revenue before we enter the market from the top 10 companies.
+```{r}
+
+## Visualization after feedback in Spark:
+test_spark <- taxi_trips_2020_spark %>% 
+  group_by(company) %>% 
+  summarise(revenue = sum(trip_total, na.rm = TRUE),
+            total_trips= n()) %>% 
+  arrange(desc(revenue)) %>% 
+  head(10) %>%
+  collect()
+
+ggplot(aes(y=company, x = total_trips), data = test_spark)+
+  geom_col(aes(color = revenue, fill = revenue))+
+  options(scipen = 3999999)
+```
+For our analysis, we consider trip_total as revenue.
+The trip_total is taken as revenue by our group because it is  the sum of fare, tips, toll and extras. 
+Also, for revenue, the numbers are in million so it shows as e after the number because of space constraints. 
+Taxi Affiliation Services & Flash Cab made the most revenue in 2020 even with COVID Pandemic going on. This shows that we have to be prepared for main competition from these 2 taxi companies in order to build our base in the taxi Market in Chicago.
+We have not taken Uber and Lyft into account because the dataset does not have any information about those 2 ride sharing companies so it will be difficult for us to make any conclusion on Uber and Lyft since they also operate in other cities in US as well compared to small taxi companies in Chicago that only operates in Chicago. 
+
+Next, lets take a look at which taxi company makes the most number of taxi trips. 
+
+### 3. Which company is making the most number of trips out of the top 10 companies?
+
+The idea behind this question is we want to find out who our competitors in the Taxi Market in terms of total number of trips out of the top 10 companies. In previous question, we have already asked the same question but it was in terms of revenue. We believe that it is not necessary that the company that has the most market share makes the most revenue since everyone has a different price model and their own strategy. 
+```{r}
+## Visualization after feedback in Spark:
+taxi_trips_2020 %>% 
+  group_by(company) %>% 
+  summarise(Totals_trips = n(),
+            Average_Trip_Total = mean(trip_total, na.rm=T)) %>% 
+  head(10) %>% 
+  ggplot(aes(x=Average_Trip_Total, y=company))+
+  geom_col(aes(color= Totals_trips, fill = Totals_trips))
+```
+Based on the output, we believe 24 Seven Taxi & 312 Medallion Management Corp has captured most trip market share even though they are not making the most revenue. This will help us make smart business strategy where we can price the trip correctly to get more passengers to use our service instead of our competitors to capture most trip market share and also most revenue market share.  
+
+Next, we will take a look at how much is the average tip is paid in Chicago. 
+
+### 4. Average tip that is paid.
+
+The idea behind this question is we want to know, how much tip on average per ride does the passenger pay in Chicago to their taxi drivers. The tips does not make much difference in our price model, but it makes a difference in the employees lives, it keeps them happy, it is a smaller source of their income so we are going to keep tips as optional, and the tip would directly go towards the employee. Since we care about our employees, we want to know on average how much tip does the taxi driver gets paid by the passengers per ride.
+```{r}
+summarise(taxi_trips_2020_final, average_tip = mean(tips, na.rm = TRUE))
+```
+Based on the output, the average tip is $1 per ride is not much in Chicago since some passengers do not like to pay any tips to taxi. But we cannot make conclusion on tips since there could be other factors involved in why customer/rider does not provide tip to the taxi driver. 
+
+Next, we will take a look at which community areas in Chicago has the most frequent pickups.
+### 5. Which area has the most frequent pickups out of top 10 community areas?
+
+The idea behind this question is since Chicago has lots of different community areas about 77 to be exact, we want to get better idea of what area we could deploy more of our taxi's to from the top 10 community area so we would deploy more of our resources in this area rather than other areas that brings in less revenue. 
+```{r}
+## Visualization after feedback in Spark:
+test_spark <- taxi_trips_2020_spark %>% 
+  group_by(pickup_community_area_code) %>% 
+  summarise(Total_Trips = n(),
+            Average_Trip_Fare=mean(fare, na.rm=T)) %>%  
+  filter(!is.na(pickup_community_area_code)) %>% 
+  arrange(desc(Total_Trips)) %>% 
+  head(10) %>% 
+  collect()
+```
+Based on the output, NearNorthSide & Loop are the most frequent pickup locations that brings in more of our revenue than other areas. We will run our taxis in all the community area but we will run more taxis in these 2 locations. Our plan is that we will reduce my taxis in community areas that brings in less revenue and deploy them in community areas that brings in more revenue like NearNorthSide & Loop, this way we wouldn't have to purchase more vehicles and saving cost. 
+
+Next, we will take a look at payment method used the most so we know whether to go cashless by accepting only creditcard and mobile payment or we also need to keep working with cash and also accept creditcard and mobile payments. 
+
+### 6. Which payment method was used the most.
+The idea behind this question is to gather data on the various payment methods used by the rider while riding a taxi. At times, the driver is forced to give a free ride or cut a trip short due to a possible dispute. At instances, where cash is used as a payment method and the trip ends up in a dispute, the company might have to bear losses for those trips.
+```{r}
+## Visualization after feedback in R:
+taxi_trips_2020 %>% 
+  group_by(payment_type) %>% 
+  summarise(Total_Payments = n(),
+            Average_Trip_Total=mean(trip_total, na.rm=T)) %>%
+    ggplot(aes(x=Total_Payments, y=payment_type))+
+  geom_col(aes(color = Average_Trip_Total, fill = Average_Trip_Total))
+
+options(scipen = 299999)
+```
+Based on the output, we see that cash and credit card are the two top most used payment methods, with cash topping the charts. Hence, we can say that, if at all a trip ends up in a dispute or cut short, there is a high possibility that the company might have to suffer a loss. Our company wanted to check whether our customers are ready to go cashless by directly paying from phone like Apple Pay, Android Pay or Samsung Pay but this charts says otherwise, so our company will have to continue to support cash transactions. 
+
+Next, we will look at how much is the revenue of each month with numbers of trips. 
+### 7. Revenue of each month with the number of trips in each month being constant
+
+The idea behind this question is to find out the total revenue made during each month over the year. We can then compare the monthly revenue and decide if the company needs to deploy more number of taxis during the busier months in order to complete more trips which in turn will yield higher revenue. 
+```{r}
+## Visualization after feedback in R:
+taxi_trips_2020 %>% 
+ group_by(month) %>%
+ summarise(revenue = sum(trip_total, na.rm = TRUE)) %>%
+  mutate_at(c(1), as.factor) %>% 
+ ggplot(aes(x= month, y=revenue))+
+ geom_point()+
+ geom_line(aes(group = 1))+
+    scale_y_continuous(name = "revenue",
+                     label = dollar,
+                     breaks = pretty_breaks())
+
+```
+Based on the output, we see that the company starts off the year making decent revenue around $700,000 for January & February which is the winter season and people are more likely to book a taxi to avoid walking. Then in March 2020, the revenue took a hit since COVID Pandemic made the nation go into lockdown and revenue went below $650,000. Then in April until June, revenue started to pickup even though lockdown was still on, we believe the revenue started picking up since essential workers like doctors, nurse, factory workers and other essential workers. Then in July, lockdown was lifted in Illinois, but revenue went down a bit to $725,000 for unknown reason even though everyone was back to work and those needed taxi to get to work would rent a taxi.Then from August until December, revenue kept rising and revenue went up to $800,000 which is not bad considering that year 2020 was not a normal year. We notice that there is a positive trend of revenue throughout the year across the holiday season, during which we need to have the maximum number of taxis deployed in the city. 
+Next, we will look into fare per mile for each company.
+
+### 8. Fare per mile for each company
+
+The idea behind this question is to compute the average fare per mile charged by different companies with respect to their services. By comparing these rates, we can get an idea of what an average fare per mile rate looks like, based on which we can set our fare price. So we are picking top 20 companies.   
+```{r}
+## Visualization after feedback in R:
+taxi_trips_2020 %>% 
+  group_by(company) %>% 
+  select(18, 12, 19, 10, 13) %>% 
+  filter(trip_miles > 0) %>% 
+  mutate(fare_per_mile = fare / trip_miles) %>% 
+   summarise(Average_Fare_per_mile = mean(fare_per_mile)) %>% 
+  arrange(desc(Average_Fare_per_mile)) %>% 
+  head(20) %>%
+  ggplot(aes(x=Average_Fare_per_mile,y=company))+
+  geom_point()
+```
+Based on the output, we can set a comparatively less than average rate for fare per mile while offering the same services as some of the top taxi companies, at least during the initial days the company enters the market so as to draw attention from as many people as possible. We can possibly set fare rate between 0 to 10 dollars per mile to be competitive with other companies.
+
+Next, we will look at number of trips for each weekday. 
+### 9. Number of trips for each weekday
+
+The idea behind this question is to identify the busiest days during a week so that we as a company can have more number of taxis deployed on a particular day to meet the expected demand. 
+```{r}
+## Visualization after feedback in R:
+ggplot(data = taxi_trips_2020) +
+  geom_bar(mapping = aes(x = hour)) +
+  facet_wrap(~ weekday, nrow = 4)
+
+```
+Based on the output, we can say that the demand is fairly high during all of the weekdays and not as much on the weekends. Days starting from Monday until Friday are equally busy from morning until evening which may suggest that most people need a ride to get to work and then on their way back home, whereas on the weekend, which is Saturday and Sunday it only starts getting busy after noon and extends until later in the evening. This could be a good time to deploy the maximum number of taxis during the weekday. 
+
+# Conclusion:
+
+## Our data findings:
+
+Our team have came to following conclusions based on our initial analysis of the taxi trip 2020 data: 
+1. In order for our company to be profitable, we have to deploy more taxis between 12PM - 5PM from Monday to Friday since that is when the businesses are mostly open and people are trying to get to different places for their work, students trying to get to their colleges in City, and tourists trying to get from one place to another to explore, and we also have to deploy more taxis on Weekend which is Saturday & Sunday from 12PM until rest of the day.   
+
+2. In order for our company to capture some revenue market share and trips market share, we have to constantly keep our eyes on our competitors.
+
+3. We have to deploy more taxis in NearNorthSide & Loop area in order to earn more trips since they are the most pickup locations.
+
+4. In the age of Credit Card & Mobile Payment, Cash is still the highest form of payment. So our company will have to keep the support of Cash payment even though new payment forms could be easier to pay.
+
+# Project Part 2
+In project part 1, our group made changes according to the professor's feedback, and we have wrote a simple explanation in form of comment each line of code that needed explanation. The changes are as listed below:
+- We corrected spelling errors and made a slight change to story in introduction.
+- Added comments to explain why we ran the code we ran under tidying dataset section.
+- Our dataset had to add community areas columns from community area csv file to make our dataset complete and usable to perform better analysis since the community area csv file had pickup and dropoff community area names. 
+- We ran code to separate one column into 4 to 5 different column for example we separated date & time column which was in "MM/DD/YYYY HH:MM" format into separate columns like date, month, year, hour, minutes and weekday.
+- We added comments to explain why we had to change datatypes for certain columns.
+- Question 1: We added extra variable revenue to perform better analysis like you suggested.
+- Question 2: We added extra variable total trips to perform better analysis like you suggested. We have explained why we consider trip total as a revenue. Also, to fix the scaling error, we have added extra "Scales" package to the library to properly display the scale. We also wrote explanation why we didn't included Uber & Lyft into our analysis.
+- Question 3: We removed count and added variable average trip total and total trips variable to perform better analysis.
+- Question 5: We removed count and added total trips and average trip fare to perform better analysis.
+- Question 6: We removed multiple color to represent all the different form of payment methods and added color to represent average trip total variable which we also added for part 2 and added total payments.
+- Question 7: We have fixed the scaling issue that we had earlier in the chart by adding extra "Scales" package to the library to properly display the scale. 
+- Question 8: We added average fare per mile variable to perform better analysis.
+- Question 9: We removed color from visualization based on your feedback.
+
+So please take a look and feel free to ask questions. Now back to part 2. 
+
+## K-Mean Clustering
+
+K-Means clustering is done to generate the models to analyze how month, weekday and community_area_code variables are divided into different clusters based on variables : trip_miles, trip_fare and trip_total. This helps us to make business decisions for complete group of observations in the cluster as they are similar.
+
+## Clustering Model: month~trip_miles+trip_fare+trip_total
+```{r}
+#clustering for months in R
+
+taxi_trips_cluster_month <- taxi_trips_2020_final %>% 
+  na.omit() %>% 
+  group_by(month) %>% 
+  summarise(mean_trip_miles = mean(trip_miles, na.rm=T),
+            mean_trip_fare = mean(fare, na.rm=T),
+            mean_trip_total = mean(trip_total, na.rm=T),
+            n = n())
+
+```
+
+For creating the distance matrix for month variable, we are extracting the month variable observation into rownames.
+```{r, echo=FALSE, eval=TRUE}
+taxi_trips_cluster_month <- as.data.frame(taxi_trips_cluster_month) %>% 
+  remove_rownames %>% 
+  column_to_rownames(var = "month")
+
+head(taxi_trips_cluster_month)
+```
+
+The data for K-Means clustering is being scaled to have same units and distance matrix is created using get_dist function followed by visualizing the distance and (dis)similarity of the observations with each other.
+```{r, echo=FALSE, eval=TRUE}
+cluster_months <- scale(taxi_trips_cluster_month)
+
+cluster_month_distance = get_dist(cluster_months)  
+
+fviz_dist(cluster_month_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+From the above chart, we can summarise that months 1,2&3 are similar to each other, 4 to 10 are similar to each other and 11,12 are mostly dissimilar with other months. With the given information, we can know that, we can divide all the months into three different clusters. For better clarity on optimum clusters, we will be performing other methods in the further steps.
+
+### Performing K-means clustering starting with 2,3,4&5 as clusters.
+```{r, echo=FALSE, eval=TRUE}
+kmeans_model2_month_R <- kmeans(cluster_months, centers = 2, nstart = 25)
+kmeans_model3_month_R <- kmeans(cluster_months, centers = 3, nstart = 25)
+kmeans_model4_month_R <- kmeans(cluster_months, centers = 4, nstart = 25)
+kmeans_model5_month_R <- kmeans(cluster_months, centers = 5, nstart = 25)
+```
+
+### Visulaising  all the models with different clusters.
+```{r, echo=FALSE, eval=TRUE}
+fviz_model2_month_R <- fviz_cluster(kmeans_model2_month_R, geom = "point", data = cluster_months) + ggtitle("Clusters = 2")
+fviz_model3_month_R <- fviz_cluster(kmeans_model3_month_R, geom = "point", data = cluster_months) + ggtitle("Clusters = 3")
+fviz_model4_month_R <- fviz_cluster(kmeans_model4_month_R, geom = "point", data = cluster_months) + ggtitle("Clusters = 4")
+fviz_model5_month_R <- fviz_cluster(kmeans_model5_month_R, geom = "point", data = cluster_months) + ggtitle("Clusters = 5")
+
+grid.arrange(fviz_model2_month_R,fviz_model3_month_R,fviz_model4_month_R,fviz_model5_month_R, nrow=2)
+```
+
+### Performing methods like: Elbow graph, Silhouette graph and gap statistics to find the optimum clusters for the observations we have.
+```{r, echo=FALSE, eval=TRUE}
+set.seed(1234)
+
+#Elbow graph
+fviz_nbclust(cluster_months, kmeans, k.max = 11, method = "wss")
+
+#silhouette graph
+fviz_nbclust(cluster_months, kmeans, k.max = 11, method = "silhouette")
+
+#compute gap statistic
+set.seed(1234)
+cluster_months_gap_stats <- clusGap(cluster_months, FUN = kmeans, nstart=25, K.max = 11, B = 50)
+
+#print the result
+print(cluster_months_gap_stats, method = "firstmax")
+
+fviz_gap_stat(cluster_months_gap_stats)
+```
+From the above charts, Elbow graph and gap statistics methods indicate that 3 is the optimum clusters we can for this set of observations. So, we are moving forward to compute and visualize the results when clusters are 3.
+
+### Extracting the results for optimum number of clusters.
+```{r, echo=FALSE, eval=TRUE}
+#extract the clusters
+set.seed(1234)
+taxi_trips_cluster_month_final <- kmeans(taxi_trips_cluster_month, centers = 3, nstart = 25)
+print(taxi_trips_cluster_month_final)
+
+fviz_cluster(taxi_trips_cluster_month_final, data = cluster_months)
+
+taxi_trips_cluster_month %>% 
+  mutate(cluster = taxi_trips_cluster_month_final$cluster) %>% 
+  group_by(cluster) %>% 
+  summarise_all("mean")
+```
+From the resultant chart, months 5,6&12 are grouped into 1st cluster because of the similarites between each other and compared to other two clusters, cluster 1 has highest mean total as months 5,6 are prime summertime and month 12 has lot of events so people prefer travelling more which in result generate high revenues. Whereas in 3rd cluster, months 1,2,3 are grouped as they are similar because of the weather in Chicago, and they have lowest means compared to other 2 clusters.
+
+As we have already found 3 as the optimum clusters, we are analysing K-Means clustering using Spark. To analyze in spark, Spark connection has been created and loaded object "taxi_trips_2020_final" into spark environment for further use.
+```{r, echo=FALSE, eval=TRUE}
+#clustering for months in Spark
+
+sc <- spark_connect(master = "local", version = "2.3")
+
+taxi_trips_2020_sc_tbl <- sdf_copy_to(sc, taxi_trips_2020_final, name = "taxi_trips_2020_sc_tbl")
+```
+
+```{r, echo=FALSE, eval=TRUE}
+taxi_trips_cluster_month_spark <- taxi_trips_2020_sc_tbl %>% 
+  na.omit() %>% 
+  group_by(month) %>% 
+  summarise(mean_trip_miles = mean(trip_miles, na.rm=T),
+            mean_trip_fare = mean(fare, na.rm=T),
+            mean_trip_total = mean(trip_total, na.rm=T),
+            n = n())
+```
+
+### Genrating K-Means model with centers as 3 and visualizing the results.
+```{r, echo=FALSE, eval=TRUE}
+kmeans_model3_month <- ml_kmeans(taxi_trips_cluster_month_spark, month ~ ., k=3, init_steps = 20)
+
+kmeans_model3_month
+```
+
+```{r, echo=FALSE, eval=TRUE}
+predicted3_month <- ml_predict(kmeans_model3_month, taxi_trips_cluster_month_spark) %>% 
+  collect()
+predicted3_month <- left_join(predicted3_month,taxi_trips_2020_sc_tbl, copy = T)
+table(predicted3_month$month, predicted3_month$prediction)
+```
+
+```{r, echo=FALSE, eval=TRUE}
+ml_predict(kmeans_model3_month) %>%
+  collect() %>%
+  ggplot(aes(mean_trip_miles, mean_trip_total)) +
+  geom_point(aes(mean_trip_miles, mean_trip_total, col = factor(prediction + 1)),
+             size = 2, alpha = 0.5) + 
+  geom_text(aes(label = month)) +
+  geom_point(data = kmeans_model3_month$centers, aes(mean_trip_miles, mean_trip_total),
+             col = scales::muted(c("red", "green", "blue")),
+             pch = 'x', size = 12) +
+  scale_color_discrete(name = "Predicted Cluster",
+                       labels = paste("Cluster", 1:3)) +
+  labs(
+    x = "Trip Miles",
+    y = "Trip Total",
+    title = "K-Means Clustering",
+    subtitle = "Three clusters"
+  )
+```
+As we saw the charts above, we can see that month 5, 6 in Cluster 1; month 7, 8, 9, 10 in Cluster 3 brought in trip total between $15.50 & $17 per trip for trip miles between 3.5 to 4.0 miles. The trip total between $15.50 & $17 is for trip miles between 3.5 to 4.0 miles is good in months 5, 6, & 7 since those are summer months so everyone would have destination, they would like to attend quickly so its better to get a taxi than taking other modes of transportation which takes times. Month 11 in Cluster 3 and month 12 in Cluster 1 brings in trip total above $17 per trip for trip miles above 4.0 since these months have events coming up so people would go out and celebrate so they will be more likely to rent a taxi to get to their destination. Whereas month 1, 2, 3 in Cluster 2 brought in trip total between $14.5 & $15.5 for trip miles between 3.0 & 3.5 & month 4 in Cluster 3 brought in trip total about $15.0 for trip miles between 3.5 & 4.0 since all these months are winter months and these months do not have many events coming up so not many people would go out to places and travel much. 
+
+## Clustering Model: weekday~trip_miles+trip_fare+trip_total
+
+To Create the K-Means clustering model to see how weekday variable observations are divided into different clusters based on variables: trip_miles, trip_fare and trip_total.
+```{r, echo=FALSE, eval=TRUE}
+#clustering for weekdays in R
+
+taxi_trips_cluster_weekday <- taxi_trips_2020_final %>% 
+  na.omit() %>% 
+  group_by(weekday) %>% 
+  summarise(mean_trip_miles = mean(trip_miles, na.rm=T),
+            mean_trip_fare = mean(fare, na.rm=T),
+            mean_trip_total = mean(trip_total, na.rm=T),
+            n = n())
+
+```
+
+For creating the distance matrix for weekday variable, we are extracting the weekday variable observation into rownames.
+```{r, echo=FALSE, eval=TRUE}
+taxi_trips_cluster_weekday <- as.data.frame(taxi_trips_cluster_weekday) %>% 
+  remove_rownames %>% 
+  column_to_rownames(var = "weekday")
+
+head(taxi_trips_cluster_weekday)
+```
+
+The data for K-mean clustering is being scaled to have same units and distance matrix is created using get_dist function followed by visualizing the distance and (dis)similarity of the observations with each other. 
+```{r, echo=FALSE, eval=TRUE}
+cluster_weekdays <- scale(taxi_trips_cluster_weekday)
+
+cluster_weekday_distance = get_dist(cluster_weekdays)  
+
+fviz_dist(cluster_weekday_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+From the above chart, we can summarize that weekdays Tuesday through Friday are similar to each other, Monday & Saturday are similar to each other, whereas Sunday is not similar at all or very different from other weekdays. With the given information, we can know that that we can divide weekdays into two different clusters. For better clarity on optimum clusters, we will be performing other methods in the further steps.
+
+### Performing K-means clustering starting with 2,3,4,5 as clusters. 
+```{r, echo=FALSE, eval=TRUE}
+kmeans_model2_weekday_R <- kmeans(cluster_weekdays, centers = 2, nstart = 25)
+kmeans_model3_weekday_R <- kmeans(cluster_weekdays, centers = 3, nstart = 25)
+kmeans_model4_weekday_R <- kmeans(cluster_weekdays, centers = 4, nstart = 25)
+kmeans_model5_weekday_R <- kmeans(cluster_weekdays, centers = 5, nstart = 25)
+```
+
+### Visualizing all the models with different clusters. 
+```{r, echo=FALSE, eval=TRUE}
+fviz_model2_weekday_R <- fviz_cluster(kmeans_model2_weekday_R, geom = "point", data = cluster_weekdays) + ggtitle("Clusters = 2")
+fviz_model3_weekday_R <- fviz_cluster(kmeans_model3_weekday_R, geom = "point", data = cluster_weekdays) + ggtitle("Clusters = 3")
+fviz_model4_weekday_R <- fviz_cluster(kmeans_model4_weekday_R, geom = "point", data = cluster_weekdays) + ggtitle("Clusters = 4")
+fviz_model5_weekday_R <- fviz_cluster(kmeans_model5_weekday_R, geom = "point", data = cluster_weekdays) + ggtitle("Clusters = 5")
+
+grid.arrange(fviz_model2_weekday_R,fviz_model3_weekday_R,fviz_model4_weekday_R,fviz_model5_weekday_R, nrow=2)
+```
+
+To find the optimum number of clusters, we chose three most popular methods, and they are: Elbow graph, Silhouette graph and gap statistics.
+```{r, echo=FALSE, eval=TRUE}
+set.seed(1234)
+
+#Elbow graph
+fviz_nbclust(cluster_weekdays, kmeans, k.max = 5, method = "wss")
+
+#silhouette graph
+fviz_nbclust(cluster_weekdays, kmeans, k.max = 5, method = "silhouette")
+
+#compute gap statistic
+set.seed(1234)
+cluster_weekdays_gap_stats <- clusGap(cluster_weekdays, FUN = kmeans, nstart=25, K.max = 5, B = 50)
+
+#print the result
+print(cluster_weekdays_gap_stats, method = "firstmax")
+
+fviz_gap_stat(cluster_weekdays_gap_stats)
+```
+From the above chart, Elbow graph and Gap statistics indicates optimum cluster of 3. While silhouette graph indicates that optimum number of cluster should be 2. Based on the results we got where 2 methods indicates 3 optimum cluster while 1 method indicates 2 optimum cluster, we will choose to go with 3 optimum cluster to compute and visualize the results.  
+
+### Extracting the results for optimum number of clusters.
+```{r, echo=FALSE, eval=TRUE}
+#extract the clusters
+set.seed(1234)
+taxi_trips_cluster_weekday_final <- kmeans(taxi_trips_cluster_weekday, centers = 3, nstart = 25)
+print(taxi_trips_cluster_weekday_final)
+
+fviz_cluster(taxi_trips_cluster_weekday_final, data = cluster_weekdays)
+
+taxi_trips_cluster_weekday %>% 
+  mutate(cluster = taxi_trips_cluster_weekday_final$cluster) %>% 
+  group_by(cluster) %>% 
+  summarise_all("mean")
+```
+From the resultant chart, days Monday, Tuesday, Wednesday, Thursday & Friday are grouped into same cluster because of the similarities between each other and compared to other two clusters, cluster 1 which has Saturday have mean_trip_total of 16.1, while Cluster 2 which has Sunday have highest mean_trip_total of 19.1 and lastly cluster 3 which have days from Monday through Friday have lowest mean_trip_total of 15.6. 
+
+As we have already found 3 as the optimum clusters, we are analyzing K-Means clustering using Spark. To analyze in spark, using existing Spark connection and object "taxi_trips_2020_final" for the analysis.
+```{r, echo=FALSE, eval=TRUE}
+
+taxi_trips_cluster_weekday_spark <- taxi_trips_2020_sc_tbl %>% 
+  na.omit() %>% 
+  group_by(weekday) %>% 
+  summarise(mean_trip_miles = mean(trip_miles, na.rm=T),
+            mean_trip_fare = mean(fare, na.rm=T),
+            mean_trip_total = mean(trip_total, na.rm=T),
+            n = n())
+```
+
+### Generating K-Means model with centers as 3 and visualizing the results.
+```{r, echo=FALSE, eval=TRUE}
+kmeans_model3_weekday <- ml_kmeans(taxi_trips_cluster_weekday_spark, weekday ~ ., k=3, init_steps = 20)
+
+kmeans_model3_weekday
+```
+
+```{r, echo=FALSE, eval=TRUE}
+predicted3_weekday <- ml_predict(kmeans_model3_weekday, taxi_trips_cluster_weekday_spark) %>% 
+  collect()
+predicted3_weekday <- left_join(predicted3_weekday,taxi_trips_2020_sc_tbl, copy = T)
+table(predicted3_weekday$weekday, predicted3_weekday$prediction)
+
+```
+
+```{r, echo=FALSE, eval=TRUE}
+ml_predict(kmeans_model3_weekday) %>%
+  collect() %>%
+  ggplot(aes(mean_trip_miles, mean_trip_total)) +
+  geom_point(aes(mean_trip_miles, mean_trip_total, col = factor(prediction + 1)),
+             size = 2, alpha = 0.5) + 
+  geom_text(aes(label = weekday))+
+  geom_point(data = kmeans_model3_weekday$centers, aes(mean_trip_miles, mean_trip_total),
+             col = scales::muted(c("red", "green", "blue")),
+             pch = 'x', size = 12) +
+  scale_color_discrete(name = "Predicted Cluster",
+                       labels = paste("Cluster", 1:3)) +
+  labs(
+    x = "Trip Miles",
+    y = "Trip Total",
+    title = "K-Means Clustering",
+    subtitle = "Three clusters"
+  )
+```
+As we see in charts above, we see that trips made on Wednesday, Thursday & Friday make under $16 with trip miles between 3.50 and 3.75. Also, we see that trips made on Saturday & Monday make between $16 and $17 with trip miles between 3.50 and 3.75. And lastly, trips made on Sunday make over $19 with trip miles over 4.50.
+
+## Clustering Model: weekday~trip_miles+trip_fare+trip_total
+
+To Create the K-Means clustering model to see how community_areas variable observations are divided into different clusters based on variables: trip_miles, trip_fare and trip_total.
+```{r, echo=FALSE, eval=TRUE}
+#clustering for community_areas in R
+
+taxi_trips_cluster_community_area <- taxi_trips_2020_final %>% 
+  na.omit() %>% 
+  group_by(pickup_community_area_code) %>% 
+  summarise(mean_trip_miles = mean(trip_miles, na.rm=T),
+            mean_trip_fare = mean(fare, na.rm=T),
+            mean_trip_total = mean(trip_total, na.rm=T),
+            n = n()) %>% 
+  head(20)
+
+```
+For creating the distance matrix for community_areas variable, we are extracting the community_areas variable observation into rownames.
+```{r, echo=FALSE, eval=TRUE}
+taxi_trips_cluster_community_area <- as.data.frame(taxi_trips_cluster_community_area) %>% 
+  remove_rownames %>% 
+  column_to_rownames(var = "pickup_community_area_code")
+
+head(taxi_trips_cluster_community_area)
+```
+The data for K-mean clustering is being scaled to have same units and distance matrix is created using get_dist function followed by visualizing the distance and (dis)similarity of the observations with each other.  
+```{r, echo=FALSE, eval=TRUE}
+cluster_community_areas <- scale(taxi_trips_cluster_community_area)
+
+cluster_community_area_distance = get_dist(cluster_community_areas)  
+
+fviz_dist(cluster_community_area_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+From the above chart, we can summarize that pickup_community_area_code EastGarfieldPark, Calumetheights, Armoursquare, Chicagolawn, AvalonPark, Beverly, Dunning, Burnside, BringtonPark, Archerheights, Austin, Auburngresham are similar to each other and , Bridgeport, Belmontcragin are similar to each other. For better clarity on optimum clusters, we will be performing other methods in the further steps.
+
+### Performing K-means clustering starting with 2,3,4,5 as clusters.
+```{r, echo=FALSE, eval=TRUE}
+kmeans_model2_community_areas_R <- kmeans(cluster_community_areas, centers = 2, nstart = 25)
+kmeans_model3_community_areas_R <- kmeans(cluster_community_areas, centers = 3, nstart = 25)
+kmeans_model4_community_areas_R <- kmeans(cluster_community_areas, centers = 4, nstart = 25)
+kmeans_model5_community_areas_R <- kmeans(cluster_community_areas, centers = 5, nstart = 25)
+```
+### Visualizing all the methods with different clusters.
+```{r, echo=FALSE, eval=TRUE}
+fviz_model2_community_areas_R  <- fviz_cluster(kmeans_model2_community_areas_R, geom = "point", data = cluster_community_areas) + ggtitle("Clusters = 2")
+fviz_model3_community_areas_R  <- fviz_cluster(kmeans_model3_community_areas_R, geom = "point", data = cluster_community_areas) + ggtitle("Clusters = 3")
+fviz_model4_community_areas_R  <- fviz_cluster(kmeans_model4_community_areas_R, geom = "point", data = cluster_community_areas) + ggtitle("Clusters = 4")
+fviz_model5_community_areas_R  <- fviz_cluster(kmeans_model5_community_areas_R, geom = "point", data = cluster_community_areas) + ggtitle("Clusters = 5")
+
+grid.arrange(fviz_model2_community_areas_R,fviz_model3_community_areas_R,fviz_model4_community_areas_R,fviz_model5_community_areas_R, nrow=2)
+```
+### Performing methods like: Elbow graph, Silhouette graph and gap statistics to find the optimum clusters for the observations we have.
+```{r, echo=FALSE, eval=TRUE}
+set.seed(1234)
+
+#Elbow graph
+fviz_nbclust(cluster_community_areas, kmeans, k.max = 19, method = "wss")
+
+#silhouette graph
+fviz_nbclust(cluster_community_areas, kmeans, k.max = 19, method = "silhouette")
+
+#compute gap statistic
+set.seed(1234)
+cluster_community_areas_gap_stats <- clusGap(cluster_community_areas, FUN = kmeans, nstart=25, K.max = 11, B = 50)
+
+#print the result
+print(cluster_community_areas_gap_stats, method = "firstmax")
+
+fviz_gap_stat(cluster_community_areas_gap_stats)
+```
+From the above chart, Elbow graph and Average Silhouette graph indicates optimum cluster of 2. While Gap statistics indicates that optimum number of cluster should be 1. Based on the results we got where 2 methods indicates 2 optimum cluster while 1 method indicates 1 optimum cluster, we will choose to go with 2 optimum cluster to compute and visualize the results.  
+
+### Extracting the results for optimum number of clusters.
+```{r, echo=FALSE, eval=TRUE}
+#extract the clusters
+set.seed(1234)
+taxi_trips_cluster_community_area_final <- kmeans(taxi_trips_cluster_community_area, centers = 2, nstart = 25)
+print(taxi_trips_cluster_community_area_final)
+
+fviz_cluster(taxi_trips_cluster_community_area_final, data = cluster_community_areas)
+
+taxi_trips_cluster_community_area %>% 
+  mutate(cluster = taxi_trips_cluster_community_area_final$cluster) %>% 
+  group_by(cluster) %>% 
+  summarise_all("mean")
+```
+From the resultant chart, pickup community area code Douglas, Chatham, Austin, Auburn, Gresham, Bankpark and Avondale are in same cluster since they are similar to each other; Ashburn, Belmontcragin, Burnside, BrightonPark, Clearing, and Beverly are in same cluster since they are similar to each other while different from other cluster. Pickup community area codes in Cluster 1 mean_trip_total is 21.1 which is highest while cluster 2 have lowest mean_trip_total of 18.1.  
+
+As we have already found 3 as the optimum clusters, we are analysing K-Means clustering using Spark. To analyze in spark, using existing Spark connection and object "taxi_trips_2020_final" for the analysis.
+```{r, echo=FALSE, eval=TRUE}
+
+taxi_trips_cluster_community_area_spark <- taxi_trips_2020_sc_tbl %>% 
+  na.omit() %>% 
+  group_by(pickup_community_area_code) %>% 
+  summarise(mean_trip_miles = mean(trip_miles, na.rm=T),
+            mean_trip_fare = mean(fare, na.rm=T),
+            mean_trip_total = mean(trip_total, na.rm=T),
+            n = n()) %>% 
+  head(20)
+```
+
+### Generating K-Means model with centers as 2 and visualizing the results.
+```{r, echo=FALSE, eval=TRUE}
+kmeans_model2_community_area <- ml_kmeans(taxi_trips_cluster_community_area_spark, pickup_community_area_code ~ ., k=2, init_steps = 20)
+
+kmeans_model2_community_area
+```
+
+```{r, echo=FALSE, eval=TRUE}
+predicted2_community_area <- ml_predict(kmeans_model2_community_area, taxi_trips_cluster_community_area_spark) %>% 
+  collect()
+predicted2_community_area <- left_join(predicted2_community_area,taxi_trips_2020_sc_tbl, copy = T)
+table(predicted2_community_area$pickup_community_area_code, predicted2_community_area$prediction)
+```
+
+```{r, echo=FALSE, eval=TRUE}
+ml_predict(kmeans_model2_community_area) %>%
+  collect() %>%
+  ggplot(aes(mean_trip_miles, mean_trip_total)) +
+  geom_point(aes(mean_trip_miles, mean_trip_total, col = factor(prediction + 1)),
+             size = 2, alpha = 0.5) +
+  geom_point(data = kmeans_model2_community_area$centers, aes(mean_trip_miles, mean_trip_total),
+             col = scales::muted(c("red", "blue")),
+             pch = 'x', size = 12) +
+  scale_color_discrete(name = "Predicted Cluster",
+                       labels = paste("Cluster", 1:2)) +
+  labs(
+    x = "Trip Miles",
+    y = "Trip Total",
+    title = "K-Means Clustering",
+    subtitle = "Two clusters"
+  )
+
+spark_disconnect(sc)
+```
+### Lessons Learnt:
+Our takeaway from this project is mostly related to how well you understand the data and take the inferences from the output of the data. From the basic manipulations we learnt how to clean the data, wrangle the data, and perform basic operations that helps us to understand the trend or pattern the data follows.
+By performing this advanced model like regression, clustering, and Support Vector Machine we learnt the ability to use the data to build models that can be used to predict any other data that is similar in future. Visualizations techniques that we learned and used throughout this project helped us understand the story the graphics speak more than numbers or words and helped us to convey the information reach across better due to visualizations. 
+
+### Conclusion:
+From our project, we have answered our research question that is analyzing Chicago taxi market in the year 2020 with changes and use the results to help make better business strategies to set up our taxi company “Welcome Taxi” in the year 2021 and compete with our competitors and optimize our revenue. The results that we required from this project and the inferences that we concluded will help us achieve a competitive advantage over other players in market. 
